@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Calendario Estratégico Web3 2026</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/ical.js@1.4.0/build/ical.min.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background-color: #f4f6f9;
+      margin: 0;
+      padding: 40px;
+      color: #1f2937;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 28px;
+      font-weight: 600;
+    }
+
+    #calendar {
+      max-width: 1100px;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Calendario Estratégico Web3 2026</h1>
+  <div id="calendar"></div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", async function () {
+      const response = await fetch("Calendario_Eventos_Web3_2026.ics");
+      const text = await response.text();
+
+      const jcalData = ICAL.parse(text);
+      const comp = new ICAL.Component(jcalData);
+      const vevents = comp.getAllSubcomponents("vevent");
+
+      const events = vevents.map(event => {
+        const e = new ICAL.Event(event);
+        return {
+          title: e.summary,
+          start: e.startDate.toJSDate(),
+          end: e.endDate.toJSDate(),
+          description: e.description
+        };
+      });
+
+      const calendar = new FullCalendar.Calendar(
+        document.getElementById("calendar"),
+        {
+          initialView: "dayGridMonth",
+          initialDate: "2026-01-01",
+          locale: "es",
+          height: "auto",
+          events: events,
+          eventClick: function(info) {
+            alert(info.event.title + "\n\n" + info.event.extendedProps.description);
+          }
+        }
+      );
+
+      calendar.render();
+    });
+  </script>
+</body>
+</html>
