@@ -1,46 +1,425 @@
-<!DOCTYPE html>
-<html lang="es">
+# Create an updated index.html with:
+# 1) English UI
+# 2) Clickable modal (not alert)
+# 3) Fix "0 " time prefix by marking all-day events properly
+# 4) Event details enriched from the provided PDF content (translated to English)
+
+html_code = """<!DOCTYPE html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Calendario Estratégico Web3 2026</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Web3 Strategic Events Calendar 2026</title>
 
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/ical.js@1.4.0/build/ical.min.js"></script>
 
   <style>
+    :root{
+      --bg: #f4f6f9;
+      --card: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --shadow: 0 14px 30px rgba(17,24,39,0.08);
+      --shadow2: 0 12px 24px rgba(17,24,39,0.18);
+      --radius: 12px;
+    }
+
     body {
       font-family: Arial, Helvetica, sans-serif;
-      background-color: #f4f6f9;
+      background-color: var(--bg);
       margin: 0;
-      padding: 40px;
-      color: #1f2937;
+      padding: 32px 18px;
+      color: var(--text);
+    }
+
+    .wrap{
+      max-width: 1120px;
+      margin: 0 auto;
+    }
+
+    header{
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 18px;
     }
 
     h1 {
+      margin: 0;
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
       text-align: center;
-      margin-bottom: 30px;
-      font-size: 28px;
-      font-weight: 600;
+    }
+
+    .subtitle{
+      text-align: center;
+      color: var(--muted);
+      font-size: 14px;
+      margin-bottom: 12px;
     }
 
     #calendar {
-      max-width: 1100px;
-      margin: 0 auto;
-      background: #ffffff;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+      background: var(--card);
+      padding: 18px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+    }
+
+    /* Modal */
+    .modal-overlay{
+      position: fixed;
+      inset: 0;
+      background: rgba(17,24,39,0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      z-index: 9999;
+    }
+
+    .modal{
+      width: min(860px, 100%);
+      background: var(--card);
+      border-radius: 14px;
+      box-shadow: var(--shadow2);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .modal-header{
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 18px 18px 10px 18px;
+      border-bottom: 1px solid var(--border);
+      background: #fbfbfd;
+    }
+
+    .modal-title{
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+
+    .modal-meta{
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 13px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .pill{
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 10px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: #fff;
+      font-size: 12px;
+      color: #374151;
+    }
+
+    .modal-close{
+      border: 1px solid var(--border);
+      background: #fff;
+      border-radius: 10px;
+      padding: 8px 10px;
+      cursor: pointer;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .modal-body{
+      padding: 16px 18px 18px 18px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    .section{
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 12px;
+      background: #fff;
+    }
+
+    .section h3{
+      margin: 0 0 6px 0;
+      font-size: 13px;
+      color: #374151;
+      letter-spacing: 0.2px;
+      text-transform: uppercase;
+    }
+
+    .section p{
+      margin: 0;
+      color: #111827;
+      font-size: 14px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+    }
+
+    .two-col{
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    @media (max-width: 740px){
+      .two-col{ grid-template-columns: 1fr; }
+      body{ padding: 22px 12px; }
+    }
+
+    /* FullCalendar small polish */
+    .fc .fc-toolbar-title{
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .fc .fc-button{
+      border-radius: 10px;
     }
   </style>
 </head>
 
 <body>
-  <h1>Calendario Estratégico Web3 2026</h1>
-  <div id="calendar"></div>
+  <div class="wrap">
+    <header>
+      <h1>Web3 Strategic Events Calendar 2026</h1>
+      <div class="subtitle">Click any event to view a dedicated information window with focus and strategic relevance.</div>
+    </header>
+
+    <div id="calendar"></div>
+  </div>
+
+  <!-- Modal -->
+  <div id="modalOverlay" class="modal-overlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-header">
+        <div>
+          <h2 id="modalTitle" class="modal-title">Event</h2>
+          <div class="modal-meta">
+            <span id="modalDate" class="pill">Date</span>
+            <span id="modalLocation" class="pill" style="display:none;">Location</span>
+          </div>
+        </div>
+        <button id="modalClose" class="modal-close" type="button">Close</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="two-col">
+          <div class="section">
+            <h3>Primary focus</h3>
+            <p id="modalFocus">—</p>
+          </div>
+          <div class="section">
+            <h3>Ideal audience</h3>
+            <p id="modalAudience">—</p>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>Strategic relevance</h3>
+          <p id="modalRelevance">—</p>
+        </div>
+
+        <div class="section">
+          <h3>Notes</h3>
+          <p id="modalNotes">—</p>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script>
+    // Enriched event information (translated from your PDF summary).
+    // Keyed by event title (SUMMARY in the ICS).
+    const EVENT_DETAILS = {
+      "CfC St. Moritz": {
+        location: "St. Moritz, Switzerland",
+        focus: "Institutional, high-level digital finance discussions.",
+        audience: "Funds, private banks, family offices, and regulators.",
+        relevance: "A selective setting for strategic conversations and executive positioning.",
+        notes: "Best suited for CEO-level networking and confidential discussions."
+      },
+      "Digital Assets Forum – Londres": {
+        location: "London, United Kingdom",
+        focus: "Institutional infrastructure and regulation for digital assets.",
+        audience: "Banks, custodians, funds, infrastructure providers.",
+        relevance: "Strong TradFi lens on digital assets, useful for compliance-aligned strategy.",
+        notes: "Prioritize meetings with custody, payments, and market infrastructure teams."
+      },
+      "Consensus Hong Kong": {
+        location: "Hong Kong",
+        focus: "Institutional capital and Asia-focused Web3 market structure.",
+        audience: "Global builders, investors, institutions, and policymakers.",
+        relevance: "High signal for Asia expansion, partnerships, and regulatory alignment.",
+        notes: "Use for capital conversations and cross-border distribution opportunities."
+      },
+      "ETHDenver": {
+        location: "Denver, United States",
+        focus: "Technical Web3 development and builder ecosystem.",
+        audience: "Developers, protocol teams, product engineers.",
+        relevance: "Best for product, engineering, and ecosystem integrations rather than executive policy work.",
+        notes: "Ideal if you have a technical roadmap (wallets, rails, smart contracts, infra)."
+      },
+      "Next Block Expo – Varsovia": {
+        location: "Warsaw, Poland",
+        focus: "European infrastructure, startups, and regulation.",
+        audience: "Founders, operators, compliance, regional investors.",
+        relevance: "Balanced event for EU ecosystem mapping and pragmatic partnerships.",
+        notes: "Good for sourcing vendors, integration partners, and early-stage teams."
+      },
+      "Paris Blockchain Week": {
+        location: "Paris, France",
+        focus: "Tokenization, MiCA, and EU institutional adoption.",
+        audience: "Banks, corporates, regulators, funds.",
+        relevance: "Strong for tokenization, compliant stablecoin strategy, and EU market access.",
+        notes: "Target side events for business development and issuer/payment conversations."
+      },
+      "Token2049 Dubai": {
+        location: "Dubai, UAE",
+        focus: "Global capital, venture, and market-level partnerships.",
+        audience: "VCs, exchanges, protocols, market makers.",
+        relevance: "High-density capital and deal-making environment.",
+        notes: "Plan side events in advance; meetings fill quickly."
+      },
+      "Consensus Miami": {
+        location: "Miami, United States",
+        focus: "Global institutional and ecosystem convergence.",
+        audience: "Regulators, institutions, founders, investors.",
+        relevance: "Major platform for executive positioning and ecosystem-level partnerships.",
+        notes: "Useful for narrative control, partnerships, and fundraising conversations."
+      },
+      "Stablecon EMEA – Ámsterdam": {
+        location: "Amsterdam, Netherlands",
+        focus: "Stablecoins, payments, regulation, and TradFi-Web3 convergence.",
+        audience: "Stablecoin issuers, banks, regulators, payment operators.",
+        relevance: "Key for money rails, cross-border settlement, and compliant stablecoin narratives.",
+        notes: "Strong fit if your strategy involves payments, on/off-ramps, or stablecoin rails."
+      },
+      "Global Blockchain & Crypto Symposium – Londres": {
+        location: "London, United Kingdom",
+        focus: "Compliance, custody, and legal structures.",
+        audience: "Legal, compliance, risk, custody providers.",
+        relevance: "High value for reducing regulatory risk and strengthening governance.",
+        notes: "Best attended with legal/compliance leadership and policy stakeholders."
+      },
+      "BTC Prague": {
+        location: "Prague, Czech Republic",
+        focus: "Bitcoin monetary infrastructure and long-term thinking.",
+        audience: "Bitcoin builders, infrastructure teams, monetary researchers.",
+        relevance: "Best for Bitcoin-aligned infrastructure and monetary layer positioning.",
+        notes: "Less relevant if your strategy is purely EVM/DeFi unless you need BTC alignment."
+      },
+      "European Blockchain Convention – Barcelona": {
+        location: "Barcelona, Spain",
+        focus: "European institutional ecosystem: banking, funds, and regulation.",
+        audience: "Institutions, funds, corporates, policymakers.",
+        relevance: "Strong EU networking density and regional decision-makers.",
+        notes: "Recommended as a core Europe anchor event."
+      },
+      "Crypto Expo Dubai": {
+        location: "Dubai, UAE",
+        focus: "Commercial market, wallets, exchanges, and infrastructure vendors.",
+        audience: "Exchanges, wallet providers, service providers.",
+        relevance: "Good for distribution, vendor sourcing, and market-facing partnerships.",
+        notes: "More commercial than policy-focused; choose based on go-to-market needs."
+      },
+      "Web Summit – Lisboa": {
+        location: "Lisbon, Portugal",
+        focus: "Global tech, fintech, and cross-sector partnerships.",
+        audience: "Tech executives, investors, corporates.",
+        relevance: "Not crypto-only, but very strong for broad strategic partnerships and visibility.",
+        notes: "Useful for positioning beyond Web3: fintech, AI, enterprise integration."
+      }
+    };
+
+    function pad2(n){ return String(n).padStart(2, "0"); }
+
+    function icalDateToISODate(t){
+      // ICAL.Time month is 1-12
+      return `${t.year}-${pad2(t.month)}-${pad2(t.day)}`;
+    }
+
+    function formatDisplayDate(start, end, allDay){
+      // For all-day events, end is typically exclusive in iCal.
+      // We'll display a clean range if it spans multiple days.
+      const opts = { year: "numeric", month: "short", day: "2-digit" };
+
+      const s = allDay ? new Date(start + "T00:00:00") : new Date(start);
+      let e = null;
+
+      if (end){
+        e = allDay ? new Date(end + "T00:00:00") : new Date(end);
+      }
+
+      if (!e){
+        return s.toLocaleDateString("en-US", opts);
+      }
+
+      // If all-day and end is exclusive, subtract 1 day for display
+      if (allDay){
+        e.setDate(e.getDate() - 1);
+      }
+
+      const sameDay = s.toDateString() === e.toDateString();
+      if (sameDay){
+        return s.toLocaleDateString("en-US", opts);
+      }
+      return `${s.toLocaleDateString("en-US", opts)} to ${e.toLocaleDateString("en-US", opts)}`;
+    }
+
+    function openModal(payload){
+      const overlay = document.getElementById("modalOverlay");
+      overlay.style.display = "flex";
+      overlay.setAttribute("aria-hidden", "false");
+
+      document.getElementById("modalTitle").textContent = payload.title || "Event";
+      document.getElementById("modalDate").textContent = payload.displayDate || "Date";
+
+      const locEl = document.getElementById("modalLocation");
+      if (payload.location){
+        locEl.style.display = "inline-flex";
+        locEl.textContent = payload.location;
+      } else {
+        locEl.style.display = "none";
+      }
+
+      document.getElementById("modalFocus").textContent = payload.focus || "—";
+      document.getElementById("modalAudience").textContent = payload.audience || "—";
+      document.getElementById("modalRelevance").textContent = payload.relevance || "—";
+      document.getElementById("modalNotes").textContent = payload.notes || payload.description || "—";
+
+      // basic focus management
+      document.getElementById("modalClose").focus();
+    }
+
+    function closeModal(){
+      const overlay = document.getElementById("modalOverlay");
+      overlay.style.display = "none";
+      overlay.setAttribute("aria-hidden", "true");
+    }
+
     document.addEventListener("DOMContentLoaded", async function () {
+      // Modal handlers
+      document.getElementById("modalClose").addEventListener("click", closeModal);
+      document.getElementById("modalOverlay").addEventListener("click", function(e){
+        if (e.target === this) closeModal();
+      });
+      document.addEventListener("keydown", function(e){
+        if (e.key === "Escape") closeModal();
+      });
+
+      // Load ICS
       const response = await fetch("Calendario_Eventos_Web3_2026.ics");
       const text = await response.text();
 
@@ -50,11 +429,27 @@
 
       const events = vevents.map(event => {
         const e = new ICAL.Event(event);
+        const isAllDay = e.startDate && e.startDate.isDate === true;
+
+        // FullCalendar: set allDay to avoid showing "0" time prefix.
+        let startVal, endVal;
+        if (isAllDay){
+          startVal = icalDateToISODate(e.startDate);
+          // endDate might be null; if present, keep as ISO date (exclusive end)
+          endVal = e.endDate ? icalDateToISODate(e.endDate) : null;
+        } else {
+          startVal = e.startDate ? e.startDate.toJSDate().toISOString() : null;
+          endVal = e.endDate ? e.endDate.toJSDate().toISOString() : null;
+        }
+
         return {
-          title: e.summary,
-          start: e.startDate.toJSDate(),
-          end: e.endDate.toJSDate(),
-          description: e.description
+          title: e.summary || "Event",
+          start: startVal,
+          end: endVal,
+          allDay: isAllDay,
+          extendedProps: {
+            description: e.description || ""
+          }
         };
       });
 
@@ -63,11 +458,40 @@
         {
           initialView: "dayGridMonth",
           initialDate: "2026-01-01",
-          locale: "es",
+          locale: "en",
           height: "auto",
+          headerToolbar: {
+            left: "prev,next today",
+            center: "title",
+            right: "dayGridMonth,listMonth"
+          },
           events: events,
           eventClick: function(info) {
-            alert(info.event.title + "\n\n" + info.event.extendedProps.description);
+            info.jsEvent.preventDefault();
+
+            const title = info.event.title;
+            const details = EVENT_DETAILS[title] || {};
+
+            const start = info.event.allDay
+              ? (info.event.startStr) // YYYY-MM-DD
+              : (info.event.start ? info.event.start.toISOString() : null);
+
+            const end = info.event.allDay
+              ? (info.event.endStr || null)
+              : (info.event.end ? info.event.end.toISOString() : null);
+
+            const displayDate = formatDisplayDate(start, end, info.event.allDay);
+
+            openModal({
+              title: title,
+              displayDate: displayDate,
+              location: details.location || "",
+              focus: details.focus || "",
+              audience: details.audience || "",
+              relevance: details.relevance || "",
+              notes: details.notes || "",
+              description: info.event.extendedProps.description || ""
+            });
           }
         }
       );
@@ -77,3 +501,10 @@
   </script>
 </body>
 </html>
+"""
+
+file_path = "/mnt/data/index_updated_modal_en.html"
+with open(file_path, "w", encoding="utf-8") as f:
+    f.write(html_code)
+
+file_path
