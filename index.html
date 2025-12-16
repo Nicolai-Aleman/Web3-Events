@@ -22,14 +22,6 @@
     .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
     h1{margin:0;font-size:24px;font-weight:750;letter-spacing:.2px}
     .subtitle{color:var(--muted);font-size:14px;margin:0;line-height:1.4}
-    .actions{display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap}
-
-    .btn{
-      appearance:none;border:1px solid var(--border);background:var(--btn);color:var(--btnText);
-      border-radius:10px;padding:9px 12px;font-weight:700;cursor:pointer;font-size:13px
-    }
-    .btn.secondary{background:var(--btnSoft);color:var(--btnSoftText)}
-    .btn:active{transform:translateY(1px)}
 
     #calendar{background:var(--card);padding:18px;border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--border)}
 
@@ -62,24 +54,20 @@
     .section p{margin:0;color:#111827;font-size:14px;line-height:1.45;white-space:pre-wrap}
     .two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 
-    /* Add-to-calendar modal */
-    .calendar-actions{display:grid;gap:10px}
-    .small{color:var(--muted);font-size:13px;line-height:1.4}
-    .urlbox{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    .input{
-      flex:1;min-width:220px;border:1px solid var(--border);border-radius:10px;padding:9px 10px;
-      font-size:13px;background:#fff;color:var(--text)
+    .event-actions{
+      display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:flex-start;
+      padding-top:4px;
     }
-    .toast{
-      position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;
-      padding:10px 12px;border-radius:10px;font-size:13px;box-shadow:var(--shadow2);display:none;z-index:10000
+    .btn{
+      appearance:none;border:1px solid var(--border);background:var(--btn);color:var(--btnText);
+      border-radius:10px;padding:10px 12px;font-weight:800;cursor:pointer;font-size:13px;
+      width: 100%;
     }
+    .hint{color:var(--muted);font-size:12.5px;line-height:1.35;margin:0}
 
     @media (max-width:760px){
       .two-col{grid-template-columns:1fr}
       body{padding:20px 12px}
-      .topbar{flex-direction:column;align-items:flex-start}
-      .actions{width:100%}
     }
 
     /* FullCalendar polish */
@@ -93,12 +81,8 @@
     <header>
       <div class="topbar">
         <h1>Web3 Strategic Events Calendar 2026</h1>
-        <div class="actions">
-          <button id="addCalendarBtn" class="btn" type="button">Add to my calendar</button>
-          <button id="downloadIcsBtn" class="btn secondary" type="button">Download .ics</button>
-        </div>
       </div>
-      <p class="subtitle">Click any event to view details in a dedicated information window.</p>
+      <p class="subtitle">Click an event to see details and add it to Apple Calendar.</p>
     </header>
 
     <div id="calendar"></div>
@@ -119,6 +103,15 @@
       </div>
 
       <div class="modal-body">
+        <div class="section">
+          <div class="event-actions">
+            <button id="addToAppleBtn" class="btn" type="button">Add to Apple Calendar</button>
+          </div>
+          <p class="hint" style="margin-top:10px;">
+            Best experience on Safari (iPhone/Mac). This adds only this event, not the entire calendar.
+          </p>
+        </div>
+
         <div class="two-col">
           <div class="section">
             <h3>Primary focus</h3>
@@ -143,65 +136,11 @@
     </div>
   </div>
 
-  <!-- Add to Calendar Modal -->
-  <div id="calendarModalOverlay" class="modal-overlay" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="calendarModalTitle">
-      <div class="modal-header">
-        <div>
-          <h2 id="calendarModalTitle" class="modal-title">Add the full calendar</h2>
-          <div class="modal-meta">
-            <span class="pill">One-click where supported</span>
-            <span class="pill">Apple Calendar, Outlook, Google Calendar</span>
-          </div>
-        </div>
-        <button id="calendarModalClose" class="modal-close" type="button">Close</button>
-      </div>
-
-      <div class="modal-body">
-        <div class="section">
-          <h3>Recommended</h3>
-          <p class="small">
-            Use “Subscribe” to keep your calendar updated automatically when this calendar changes.
-            If one-click subscription is not supported on your device, download the .ics file and import it.
-          </p>
-          <div class="calendar-actions" style="margin-top:10px;">
-            <button id="subscribeBtn" class="btn" type="button">Subscribe (automatic updates)</button>
-            <button id="calendarDownloadBtn" class="btn secondary" type="button">Download .ics (manual import)</button>
-          </div>
-        </div>
-
-        <div class="section">
-          <h3>Google Calendar (subscription URL)</h3>
-          <p class="small">
-            Google Calendar subscriptions require adding a calendar by URL. Copy the URL below and add it in Google Calendar:
-            Settings → Add calendar → From URL.
-          </p>
-          <div class="urlbox" style="margin-top:10px;">
-            <input id="calendarUrlInput" class="input" readonly />
-            <button id="copyUrlBtn" class="btn secondary" type="button">Copy URL</button>
-          </div>
-        </div>
-
-        <div class="section">
-          <h3>Notes</h3>
-          <p class="small">
-            Apple Calendar and Outlook typically support one-click subscriptions via a webcal link.
-            Some browsers block custom protocols; if that happens, use “Download .ics”.
-          </p>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div id="toast" class="toast">Copied</div>
-
   <script>
-    // IMPORTANT:
-    // Keep the ICS file in the same folder as this index.html.
-    // Filename must match exactly.
+    // Keep your full ICS in the same folder as this index.html (for calendar rendering)
     const ICS_FILENAME = "Calendario_Eventos_Web3_2026.ics";
 
-    // Enriched event details (English). Key must match the ICS event SUMMARY exactly.
+    // Optional enriched details per event title (must match SUMMARY in the ICS exactly).
     const EVENT_DETAILS = {
       "CfC St. Moritz": {
         location: "St. Moritz, Switzerland",
@@ -209,13 +148,6 @@
         audience: "Funds, private banks, family offices, and regulators.",
         relevance: "Selective setting for strategic conversations and executive positioning.",
         notes: "Best suited for CEO-level networking and confidential discussions."
-      },
-      "Digital Assets Forum – Londres": {
-        location: "London, United Kingdom",
-        focus: "Institutional infrastructure and regulation for digital assets.",
-        audience: "Banks, custodians, funds, infrastructure providers.",
-        relevance: "Strong TradFi lens on digital assets, useful for compliance-aligned strategy.",
-        notes: "Prioritize meetings with custody, payments, and market infrastructure teams."
       },
       "Consensus Hong Kong": {
         location: "Hong Kong",
@@ -230,84 +162,15 @@
         audience: "Developers, protocol teams, product engineers.",
         relevance: "Best for product, engineering, and ecosystem integrations.",
         notes: "Ideal if you have a technical roadmap (wallets, rails, smart contracts, infrastructure)."
-      },
-      "Next Block Expo – Varsovia": {
-        location: "Warsaw, Poland",
-        focus: "European infrastructure, startups, and regulation.",
-        audience: "Founders, operators, compliance, regional investors.",
-        relevance: "Balanced event for EU ecosystem mapping and pragmatic partnerships.",
-        notes: "Good for sourcing vendors, integration partners, and early-stage teams."
-      },
-      "Paris Blockchain Week": {
-        location: "Paris, France",
-        focus: "Tokenization, MiCA, and EU institutional adoption.",
-        audience: "Banks, corporates, regulators, funds.",
-        relevance: "Strong for tokenization, compliant stablecoin strategy, and EU market access.",
-        notes: "Target side events for business development and issuer/payment conversations."
-      },
-      "Token2049 Dubai": {
-        location: "Dubai, UAE",
-        focus: "Global capital, venture, and market-level partnerships.",
-        audience: "VCs, exchanges, protocols, market makers.",
-        relevance: "High-density capital and deal-making environment.",
-        notes: "Plan side events in advance; meetings fill quickly."
-      },
-      "Consensus Miami": {
-        location: "Miami, United States",
-        focus: "Global institutional and ecosystem convergence.",
-        audience: "Regulators, institutions, founders, investors.",
-        relevance: "Strong platform for executive positioning and partnerships.",
-        notes: "Useful for narrative control, partnerships, and fundraising conversations."
-      },
-      "Stablecon EMEA – Ámsterdam": {
-        location: "Amsterdam, Netherlands",
-        focus: "Stablecoins, payments, regulation, and TradFi-Web3 convergence.",
-        audience: "Stablecoin issuers, banks, regulators, payment operators.",
-        relevance: "Key for money rails, cross-border settlement, and compliant stablecoin narratives.",
-        notes: "Strong fit if your strategy involves payments, on/off-ramps, or stablecoin rails."
-      },
-      "Global Blockchain & Crypto Symposium – Londres": {
-        location: "London, United Kingdom",
-        focus: "Compliance, custody, and legal structures.",
-        audience: "Legal, compliance, risk, custody providers.",
-        relevance: "High value for reducing regulatory risk and strengthening governance.",
-        notes: "Best attended with legal/compliance leadership and policy stakeholders."
-      },
-      "BTC Prague": {
-        location: "Prague, Czech Republic",
-        focus: "Bitcoin monetary infrastructure and long-term thinking.",
-        audience: "Bitcoin builders, infrastructure teams, monetary researchers.",
-        relevance: "Best for Bitcoin-aligned infrastructure and monetary-layer positioning.",
-        notes: "Less relevant if your strategy is purely DeFi unless you need BTC alignment."
-      },
-      "European Blockchain Convention – Barcelona": {
-        location: "Barcelona, Spain",
-        focus: "European institutional ecosystem: banking, funds, and regulation.",
-        audience: "Institutions, funds, corporates, policymakers.",
-        relevance: "Strong EU networking density and regional decision-makers.",
-        notes: "Recommended as a core Europe anchor event."
-      },
-      "Crypto Expo Dubai": {
-        location: "Dubai, UAE",
-        focus: "Commercial market: wallets, exchanges, and infrastructure vendors.",
-        audience: "Exchanges, wallet providers, service providers.",
-        relevance: "Good for distribution, vendor sourcing, and market-facing partnerships.",
-        notes: "More commercial than policy-focused; choose based on go-to-market needs."
-      },
-      "Web Summit – Lisboa": {
-        location: "Lisbon, Portugal",
-        focus: "Global tech, fintech, and cross-sector partnerships.",
-        audience: "Tech executives, investors, corporates.",
-        relevance: "Strong for broad strategic partnerships and visibility beyond Web3.",
-        notes: "Useful for positioning in fintech, AI, and enterprise integration."
       }
+      // Add more as needed...
     };
 
     function pad2(n){ return String(n).padStart(2, "0"); }
     function icalDateToISODate(t){ return `${t.year}-${pad2(t.month)}-${pad2(t.day)}`; }
 
     function formatDisplayDate(start, end, allDay){
-      const opts = { year: "numeric", month: "short", day: "2-digit" };
+      const opts = { year:"numeric", month:"short", day:"2-digit" };
       const s = allDay ? new Date(start + "T00:00:00") : new Date(start);
       let e = end ? (allDay ? new Date(end + "T00:00:00") : new Date(end)) : null;
       if (!e) return s.toLocaleDateString("en-US", opts);
@@ -325,88 +188,116 @@
         if (el) setTimeout(() => el.focus(), 0);
       }
     }
-
     function closeOverlay(id){
       const overlay = document.getElementById(id);
       overlay.style.display = "none";
       overlay.setAttribute("aria-hidden", "true");
     }
 
-    function toast(msg){
-      const t = document.getElementById("toast");
-      t.textContent = msg;
-      t.style.display = "block";
-      clearTimeout(window.__toastTimer);
-      window.__toastTimer = setTimeout(() => { t.style.display = "none"; }, 1400);
+    // --- Apple Calendar: Create a single-event ICS and open it ---
+    function escapeIcsText(s){
+      return String(s || "")
+        .replace(/\\\\/g, "\\\\\\\\")
+        .replace(/\\n/g, "\\\\n")
+        .replace(/\\r/g, "")
+        .replace(/,/g, "\\\\,")
+        .replace(/;/g, "\\\\;");
     }
 
-    function getAbsoluteIcsUrl(){
-      // Ensures correct URL on GitHub Pages
-      const base = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, "/");
-      return base + ICS_FILENAME;
+    function toIcsUtc(dt){
+      // dt is JS Date
+      const y = dt.getUTCFullYear();
+      const m = pad2(dt.getUTCMonth()+1);
+      const d = pad2(dt.getUTCDate());
+      const hh = pad2(dt.getUTCHours());
+      const mm = pad2(dt.getUTCMinutes());
+      const ss = pad2(dt.getUTCSeconds());
+      return `${y}${m}${d}T${hh}${mm}${ss}Z`;
     }
 
-    function downloadIcs(){
-      const a = document.createElement("a");
-      a.href = ICS_FILENAME;
-      a.download = ICS_FILENAME;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    }
+    function buildSingleEventIcs({ title, start, end, allDay, description, location }){
+      const uid = `web3-${Math.random().toString(16).slice(2)}@nicolai-aleman.github.io`;
+      const now = toIcsUtc(new Date());
 
-    function subscribeWebcal(){
-      // Works best for Apple Calendar / Outlook (subscription)
-      const httpsUrl = getAbsoluteIcsUrl();
-      const webcalUrl = httpsUrl.replace(/^https:\/\//i, "webcal://");
-      window.location.href = webcalUrl;
-    }
+      let dtStartLine = "";
+      let dtEndLine = "";
 
-    document.addEventListener("DOMContentLoaded", async function () {
-      // Wire buttons
-      document.getElementById("downloadIcsBtn").addEventListener("click", downloadIcs);
-      document.getElementById("addCalendarBtn").addEventListener("click", () => openOverlay("calendarModalOverlay", "subscribeBtn"));
+      if (allDay){
+        // FullCalendar all-day dates are YYYY-MM-DD
+        // iCalendar for all-day uses VALUE=DATE and DTEND is exclusive
+        dtStartLine = `DTSTART;VALUE=DATE:${start.replaceAll("-","")}`;
 
-      document.getElementById("calendarModalClose").addEventListener("click", () => closeOverlay("calendarModalOverlay"));
-      document.getElementById("calendarDownloadBtn").addEventListener("click", downloadIcs);
-      document.getElementById("subscribeBtn").addEventListener("click", subscribeWebcal);
-
-      // Fill Google subscription URL
-      document.getElementById("calendarUrlInput").value = getAbsoluteIcsUrl();
-
-      document.getElementById("copyUrlBtn").addEventListener("click", async () => {
-        const url = document.getElementById("calendarUrlInput").value;
-        try{
-          await navigator.clipboard.writeText(url);
-          toast("Calendar URL copied");
-        }catch(err){
-          const input = document.getElementById("calendarUrlInput");
-          input.focus();
-          input.select();
-          document.execCommand("copy");
-          toast("Calendar URL copied");
+        if (end){
+          dtEndLine = `DTEND;VALUE=DATE:${end.replaceAll("-","")}`;
+        } else {
+          // If no end, make it a 1-day event by setting DTEND = start + 1 day
+          const s = new Date(start + "T00:00:00");
+          s.setDate(s.getDate() + 1);
+          const y = s.getFullYear();
+          const m = pad2(s.getMonth()+1);
+          const d = pad2(s.getDate());
+          dtEndLine = `DTEND;VALUE=DATE:${y}${m}${d}`;
         }
-      });
+      } else {
+        const s = new Date(start);
+        const e = end ? new Date(end) : new Date(s.getTime() + 60*60*1000);
+        dtStartLine = `DTSTART:${toIcsUtc(s)}`;
+        dtEndLine = `DTEND:${toIcsUtc(e)}`;
+      }
 
-      // Close modals on overlay click + Esc
-      ["eventModalOverlay", "calendarModalOverlay"].forEach(id => {
-        const ov = document.getElementById(id);
-        ov.addEventListener("click", function(e){
-          if (e.target === this) closeOverlay(id);
-        });
-      });
+      const ics =
+`BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Web3 Events//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+BEGIN:VEVENT
+UID:${uid}
+DTSTAMP:${now}
+SUMMARY:${escapeIcsText(title)}
+${dtStartLine}
+${dtEndLine}
+${location ? "LOCATION:" + escapeIcsText(location) : ""}
+DESCRIPTION:${escapeIcsText(description || "")}
+END:VEVENT
+END:VCALENDAR`;
 
-      document.addEventListener("keydown", function(e){
-        if (e.key === "Escape"){
-          closeOverlay("eventModalOverlay");
-          closeOverlay("calendarModalOverlay");
-        }
-      });
+      return ics.replace(/\\n/g, "\\r\\n");
+    }
 
-      // Event modal close
+    function openAppleCalendarForEvent(icsText){
+      // data URL approach: triggers Apple Calendar import on Safari/iOS/macOS
+      const blob = new Blob([icsText], { type: "text/calendar;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+
+      // Opening the blob URL in same tab is more reliable for Safari import flows
+      window.location.href = url;
+
+      // Cleanup after a while
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    }
+
+    // Store the currently selected event data for the "Add to Apple Calendar" button
+    let CURRENT_EVENT_PAYLOAD = null;
+
+    document.addEventListener("DOMContentLoaded", async function(){
+      // Modal handlers
       document.getElementById("eventModalClose").addEventListener("click", () => closeOverlay("eventModalOverlay"));
+      document.getElementById("eventModalOverlay").addEventListener("click", function(e){
+        if (e.target === this) closeOverlay("eventModalOverlay");
+      });
+      document.addEventListener("keydown", function(e){
+        if (e.key === "Escape") closeOverlay("eventModalOverlay");
+      });
 
-      // Load ICS
+      document.getElementById("addToAppleBtn").addEventListener("click", function(){
+        if (!CURRENT_EVENT_PAYLOAD) return;
+
+        const ics = buildSingleEventIcs(CURRENT_EVENT_PAYLOAD);
+        openAppleCalendarForEvent(ics);
+      });
+
+      // Load full ICS to render calendar
       const response = await fetch(ICS_FILENAME);
       const text = await response.text();
 
@@ -414,7 +305,6 @@
       const comp = new ICAL.Component(jcalData);
       const vevents = comp.getAllSubcomponents("vevent");
 
-      // Convert ICS events to FullCalendar events
       const events = vevents.map(event => {
         const e = new ICAL.Event(event);
         const isAllDay = e.startDate && e.startDate.isDate === true;
@@ -422,7 +312,7 @@
         let startVal, endVal;
         if (isAllDay){
           startVal = icalDateToISODate(e.startDate); // YYYY-MM-DD
-          endVal = e.endDate ? icalDateToISODate(e.endDate) : null; // exclusive end for all-day
+          endVal = e.endDate ? icalDateToISODate(e.endDate) : null; // exclusive end
         } else {
           startVal = e.startDate ? e.startDate.toJSDate().toISOString() : null;
           endVal = e.endDate ? e.endDate.toJSDate().toISOString() : null;
@@ -437,46 +327,54 @@
         };
       });
 
-      // Render calendar
-      const calendar = new FullCalendar.Calendar(
-        document.getElementById("calendar"),
-        {
-          initialView: "dayGridMonth",
-          initialDate: "2026-01-01",
-          locale: "en",
-          height: "auto",
-          headerToolbar: { left: "prev,next today", center: "title", right: "dayGridMonth,listMonth" },
-          events: events,
-          eventClick: function(info) {
-            info.jsEvent.preventDefault();
+      const calendar = new FullCalendar.Calendar(document.getElementById("calendar"), {
+        initialView: "dayGridMonth",
+        initialDate: "2026-01-01",
+        locale: "en",
+        height: "auto",
+        headerToolbar: { left: "prev,next today", center: "title", right: "dayGridMonth,listMonth" },
+        events,
+        eventClick: function(info){
+          info.jsEvent.preventDefault();
 
-            const title = info.event.title;
-            const details = EVENT_DETAILS[title] || {};
+          const title = info.event.title;
+          const details = EVENT_DETAILS[title] || {};
 
-            const start = info.event.allDay ? info.event.startStr : (info.event.start ? info.event.start.toISOString() : null);
-            const end = info.event.allDay ? (info.event.endStr || null) : (info.event.end ? info.event.end.toISOString() : null);
-            const displayDate = formatDisplayDate(start, end, info.event.allDay);
+          const start = info.event.allDay ? info.event.startStr : (info.event.start ? info.event.start.toISOString() : null);
+          const end = info.event.allDay ? (info.event.endStr || null) : (info.event.end ? info.event.end.toISOString() : null);
+          const displayDate = formatDisplayDate(start, end, info.event.allDay);
 
-            document.getElementById("eventModalTitle").textContent = title;
-            document.getElementById("eventModalDate").textContent = displayDate;
+          // Fill modal text
+          document.getElementById("eventModalTitle").textContent = title;
+          document.getElementById("eventModalDate").textContent = displayDate;
 
-            const locEl = document.getElementById("eventModalLocation");
-            if (details.location){
-              locEl.style.display = "inline-flex";
-              locEl.textContent = details.location;
-            } else {
-              locEl.style.display = "none";
-            }
-
-            document.getElementById("eventModalFocus").textContent = details.focus || "—";
-            document.getElementById("eventModalAudience").textContent = details.audience || "—";
-            document.getElementById("eventModalRelevance").textContent = details.relevance || "—";
-            document.getElementById("eventModalNotes").textContent = details.notes || info.event.extendedProps.description || "—";
-
-            openOverlay("eventModalOverlay", "eventModalClose");
+          const locEl = document.getElementById("eventModalLocation");
+          if (details.location){
+            locEl.style.display = "inline-flex";
+            locEl.textContent = details.location;
+          } else {
+            locEl.style.display = "none";
           }
+
+          document.getElementById("eventModalFocus").textContent = details.focus || "—";
+          document.getElementById("eventModalAudience").textContent = details.audience || "—";
+          document.getElementById("eventModalRelevance").textContent = details.relevance || "—";
+          document.getElementById("eventModalNotes").textContent =
+            details.notes || info.event.extendedProps.description || "—";
+
+          // Prepare payload for single-event ICS
+          CURRENT_EVENT_PAYLOAD = {
+            title,
+            start: info.event.allDay ? info.event.startStr : info.event.start.toISOString(),
+            end: info.event.allDay ? (info.event.endStr || null) : (info.event.end ? info.event.end.toISOString() : null),
+            allDay: info.event.allDay,
+            description: details.notes || info.event.extendedProps.description || "",
+            location: details.location || ""
+          };
+
+          openOverlay("eventModalOverlay", "addToAppleBtn");
         }
-      );
+      });
 
       calendar.render();
     });
