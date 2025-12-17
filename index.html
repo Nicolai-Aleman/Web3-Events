@@ -13,7 +13,8 @@
     :root{
       --bg:#f4f6f9; --card:#fff; --text:#111827; --muted:#6b7280; --border:#e5e7eb;
       --shadow:0 14px 30px rgba(17,24,39,.08); --shadow2:0 12px 24px rgba(17,24,39,.18);
-      --radius:12px; --btn:#111827; --btnText:#fff;
+      --radius:12px; --btn:#111827; --btnText:#fff; --btnSoft:#fff; --btnSoftText:#111827;
+      --chip:#f9fafb;
     }
 
     body{font-family:Arial,Helvetica,sans-serif;background:var(--bg);margin:0;padding:28px 16px;color:var(--text)}
@@ -22,6 +23,25 @@
     .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
     h1{margin:0;font-size:24px;font-weight:750;letter-spacing:.2px}
     .subtitle{color:var(--muted);font-size:14px;margin:0;line-height:1.4}
+
+    .controls{
+      display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;
+      background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+      padding:12px;box-shadow:var(--shadow);margin-bottom:12px
+    }
+    .search{
+      display:flex;gap:10px;align-items:center;flex:1;min-width:240px
+    }
+    .search input{
+      width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;
+      font-size:13px;outline:none;background:#fff
+    }
+    .chip{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:8px 10px;border:1px solid var(--border);border-radius:999px;background:var(--chip);
+      font-size:12.5px;color:#374151
+    }
+    .chip input{accent-color:#111827}
 
     #calendar{background:var(--card);padding:18px;border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--border)}
     .error-box{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px;color:#111827}
@@ -66,11 +86,17 @@
       border-radius:10px;padding:10px 12px;font-weight:800;cursor:pointer;font-size:13px;
       width: 100%;
     }
+    .btn-soft{
+      appearance:none;border:1px solid var(--border);background:var(--btnSoft);color:var(--btnSoftText);
+      border-radius:10px;padding:10px 12px;font-weight:800;cursor:pointer;font-size:13px;
+      width: 100%;
+    }
     .hint{color:var(--muted);font-size:12.5px;line-height:1.35;margin:0}
 
     @media (max-width:760px){
       .two-col{grid-template-columns:1fr}
       body{padding:20px 12px}
+      .controls{gap:12px}
     }
 
     /* FullCalendar polish */
@@ -88,6 +114,16 @@
       <p class="subtitle">Click an event to see details and add it to Apple Calendar.</p>
     </header>
 
+    <div class="controls">
+      <div class="search">
+        <input id="eventSearch" type="search" placeholder="Search events (e.g., Token2049, London, Dubai)..." autocomplete="off" />
+      </div>
+      <label class="chip" title="Show only the highest priority events">
+        <input id="priorityOnly" type="checkbox" />
+        Priority only
+      </label>
+    </div>
+
     <div id="calendar"></div>
   </div>
 
@@ -100,6 +136,7 @@
           <div class="modal-meta">
             <span id="eventModalDate" class="pill">Date</span>
             <span id="eventModalLocation" class="pill" style="display:none;">Location</span>
+            <span id="eventModalPriority" class="pill" style="display:none;">Priority</span>
           </div>
         </div>
         <button id="eventModalClose" class="modal-close" type="button">Close</button>
@@ -109,6 +146,7 @@
         <div class="section">
           <div class="event-actions">
             <button id="addToAppleBtn" class="btn" type="button">Add to Apple Calendar</button>
+            <button id="openOfficialBtn" class="btn-soft" type="button" style="display:none;">Open official page</button>
           </div>
           <p class="hint" style="margin-top:10px;">
             Best experience on Safari (iPhone/Mac). This adds only this event, not the entire calendar.
@@ -142,63 +180,242 @@
   <script>
     const ICS_FILENAME = "Calendario_Eventos_Web3_2026.ics";
 
-    // Enriched details per event title (must match SUMMARY in the ICS exactly).
+    // Fallback ICS (so this works 100% even if fetch fails or the file is missing)
+    const ICS_FALLBACK_TEXT =
+`BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Web3 Events 2026//EN
+BEGIN:VEVENT
+SUMMARY:CfC St. Moritz
+DTSTART;VALUE=DATE:20260114
+DTEND;VALUE=DATE:20260115
+DESCRIPTION:Evento institucional ultra selectivo: fondos, banca privada y reguladores.
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Digital Assets Forum – Londres
+DTSTART;VALUE=DATE:20260205
+DTEND;VALUE=DATE:20260206
+DESCRIPTION:Infraestructura institucional, regulación y activos digitales.
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Consensus Hong Kong
+DTSTART;VALUE=DATE:20260210
+DTEND;VALUE=DATE:20260211
+DESCRIPTION:Convergencia Asia, capital institucional y Web3.
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:ETHDenver
+DTSTART;VALUE=DATE:20260217
+DTEND;VALUE=DATE:20260218
+DESCRIPTION:Evento técnico y de desarrollo Web3.
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Next Block Expo – Varsovia
+DTSTART;VALUE=DATE:20260324
+DTEND;VALUE=DATE:20260325
+DESCRIPTION:Infraestructura, startups y regulación europea.
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Paris Blockchain Week
+DTSTART;VALUE=DATE:20260415
+DTEND;VALUE=DATE:20260416
+DESCRIPTION:Tokenización, MiCA y banca europea.
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Token2049 Dubai
+DTSTART;VALUE=DATE:20260429
+DTEND;VALUE=DATE:20260430
+DESCRIPTION:Capital global, VCs e inversión Web3.
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Consensus Miami
+DTSTART;VALUE=DATE:20260505
+DTEND;VALUE=DATE:20260506
+DESCRIPTION:Evento global institucional del ecosistema cripto.
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Stablecon EMEA – Ámsterdam
+DTSTART;VALUE=DATE:20260519
+DTEND;VALUE=DATE:20260520
+DESCRIPTION:Stablecoins, pagos, regulación y TradFi-Web3.
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Global Blockchain & Crypto Symposium – Londres
+DTSTART;VALUE=DATE:20260610
+DTEND;VALUE=DATE:20260611
+DESCRIPTION:Compliance, custodia y regulación.
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:BTC Prague
+DTSTART;VALUE=DATE:20260611
+DTEND;VALUE=DATE:20260612
+DESCRIPTION:Infraestructura monetaria y Bitcoin.
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:European Blockchain Convention – Barcelona
+DTSTART;VALUE=DATE:20260917
+DTEND;VALUE=DATE:20260918
+DESCRIPTION:Institucional, banca, fondos y regulación europea.
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Crypto Expo Dubai
+DTSTART;VALUE=DATE:20260909
+DTEND;VALUE=DATE:20260910
+DESCRIPTION:Exchanges, wallets e infraestructura comercial.
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Web Summit – Lisboa
+DTSTART;VALUE=DATE:20261109
+DTEND;VALUE=DATE:20261110
+DESCRIPTION:Tecnología global, fintech y Web3.
+END:VEVENT
+END:VCALENDAR`;
+
+    // Premium enrichment and date overrides (for correct multi-day durations + better UX)
+    // For all-day overrides: end should be exclusive YYYY-MM-DD.
     const EVENT_DETAILS = {
       "CfC St. Moritz": {
-        location: "St. Moritz, Switzerland (Villa Beaulieu)",
-        focus: "Curated, investor-grade digital assets and market-structure conversations.",
-        audience: "Institutional investors, private banks, family offices, regulators, top-tier founders.",
-        relevance: "High signal environment for discreet partnerships, positioning, and strategic alignment.",
-        notes: "Industry Days 2026: Jan 13–17, 2026. Venue: Villa Beaulieu, St. Moritz. Use for CEO-level networking and confidential dealflow."
+        priority: "High",
+        location: "St. Moritz, Switzerland",
+        url: "https://cfc-stmoritz.com/",
+        focus: "Curated institutional dialogue on digital assets, market structure, and infrastructure.",
+        audience: "Private banks, funds, family offices, regulators, top founders.",
+        relevance: "High signal for discreet partnerships and positioning with institutional stakeholders.",
+        notes: "Official dates: Jan 14–16, 2026. Go with a tight target list and pre-booked meetings.",
+        dateOverride: { start: "2026-01-14", end: "2026-01-17" }
+      },
+      "Digital Assets Forum – Londres": {
+        priority: "High",
+        location: "London, UK",
+        url: "https://eblockchainconvention.com/digital-assets-forum/",
+        focus: "Institutional digital assets: policy, market structure, custody, tokenization, and banking.",
+        audience: "Asset managers, banks, market makers, policymakers, infra providers.",
+        relevance: "Best forum for institutional credibility, compliance narrative, and strategic BD.",
+        notes: "Official dates: Feb 5–6, 2026. Optimize for 1:1 meetings and policy-facing conversations.",
+        dateOverride: { start: "2026-02-05", end: "2026-02-07" }
       },
       "Consensus Hong Kong": {
-        location: "Hong Kong (Hong Kong Convention & Exhibition Centre)",
-        focus: "Institutional scale digital assets, market infrastructure, regulation, and global capital.",
-        audience: "Builders, VCs, institutions, exchanges, policymakers, compliance and market-structure teams.",
-        relevance: "Strong for Asia expansion, distribution partnerships, and regulatory narratives.",
-        notes: "Dates: Feb 10–12, 2026. Venue: Hong Kong Convention & Exhibition Centre (HKCEC). Prioritize meetings around capital, custody, and cross-border rails."
+        priority: "High",
+        location: "Hong Kong Convention & Exhibition Centre (HKCEC)",
+        url: "https://consensus-hongkong.coindesk.com/",
+        focus: "Institutional-scale Web3: capital, regulation, market infrastructure, APAC macro.",
+        audience: "Institutions, exchanges, compliance teams, founders, VCs, policymakers.",
+        relevance: "Key for APAC expansion, distribution partnerships, and regulatory alignment.",
+        notes: "Official dates: Feb 10–12, 2026. Strong for cross-border rails and enterprise adoption stories.",
+        dateOverride: { start: "2026-02-10", end: "2026-02-13" }
       },
       "ETHDenver": {
+        priority: "Medium",
         location: "Denver, Colorado, USA",
-        focus: "Builder ecosystem, engineering, protocols, dev tooling, and hands-on experimentation.",
-        audience: "Developers, protocol teams, product engineers, infra builders, community operators.",
-        relevance: "Best for product traction, integrations, recruiting technical talent, and ecosystem presence.",
-        notes: "Dates: Feb 17–21, 2026. Go with a concrete roadmap: wallets, rails, smart contracts, infra, SDKs. Plan side-events for partner demos."
+        url: "https://ethdenver.com/",
+        focus: "Builder ecosystem: protocols, tooling, infra, wallets, dev communities.",
+        audience: "Developers, protocol teams, product engineers, ecosystem leaders.",
+        relevance: "Best for technical partnerships, recruiting, integrations, and product traction.",
+        notes: "Official dates: Feb 17–21, 2026. Bring demos, SDK narratives, and a concrete build roadmap.",
+        dateOverride: { start: "2026-02-17", end: "2026-02-22" }
+      },
+      "Next Block Expo – Varsovia": {
+        priority: "Medium",
+        location: "Warsaw, Poland",
+        url: "https://nextblockexpo.com/",
+        focus: "Startups, infrastructure, and European ecosystem networking.",
+        audience: "Founders, investors, builders, service providers.",
+        relevance: "Efficient for EU dealflow and partnerships with emerging teams.",
+        notes: "Official dates: Mar 24–25, 2026. Focus on BD and scouting early-stage teams.",
+        dateOverride: { start: "2026-03-24", end: "2026-03-26" }
+      },
+      "Paris Blockchain Week": {
+        priority: "High",
+        location: "Paris, France (Carrousel du Louvre)",
+        url: "https://www.parisblockchainweek.com/",
+        focus: "TradFi meets digital assets: tokenization, regulation, institutions.",
+        audience: "Banks, funds, corporates, regulators, Web3 leaders.",
+        relevance: "Strong for MiCA narrative, institutional partnerships, and investor credibility.",
+        notes: "Official dates: Apr 15–16, 2026. Prepare a crisp institutional story and compliance posture.",
+        dateOverride: { start: "2026-04-15", end: "2026-04-17" }
+      },
+      "Token2049 Dubai": {
+        priority: "High",
+        location: "Dubai, UAE (Madinat Jumeirah)",
+        url: "https://www.token2049.com/dubai",
+        focus: "Global crypto capital: investment, partnerships, and ecosystem visibility.",
+        audience: "VCs, founders, exchanges, market makers, institutions.",
+        relevance: "High ROI if you run structured meetings and side-event strategy.",
+        notes: "Official dates: Apr 29–30, 2026. Plan side events and a clear narrative for capital conversations.",
+        dateOverride: { start: "2026-04-29", end: "2026-05-01" }
+      },
+      "Consensus Miami": {
+        priority: "High",
+        location: "Miami Beach Convention Center, USA",
+        url: "https://consensus.coindesk.com/",
+        focus: "Institutional scale digital assets in the Americas: policy, markets, capital.",
+        audience: "Institutions, funds, corporates, exchanges, regulators, founders.",
+        relevance: "Top-tier networking for the Americas, strong for partnerships and distribution.",
+        notes: "Official dates: May 5–7, 2026. Maximize with pre-scheduled meetings and a clear institutional pitch.",
+        dateOverride: { start: "2026-05-05", end: "2026-05-08" }
+      },
+      "Stablecon EMEA – Ámsterdam": {
+        priority: "High",
+        location: "Amsterdam, Netherlands",
+        url: "https://stablecon.com/emea/",
+        focus: "Stablecoins, payments, compliance, and TradFi integration.",
+        audience: "Payments, fintechs, banks, policy, stablecoin issuers, infra teams.",
+        relevance: "Ideal if your strategy involves rails, settlement, on/off-ramps, or regulated issuance.",
+        notes: "Official dates: May 19–20, 2026. Go with use cases, compliance positioning, and partner pipeline.",
+        dateOverride: { start: "2026-05-19", end: "2026-05-21" }
+      },
+      "Global Blockchain & Crypto Symposium – Londres": {
+        priority: "Medium",
+        location: "London, UK",
+        url: "https://blockchaincrypto-symposium.com/",
+        focus: "Legal and compliance-heavy blockchain and crypto topics.",
+        audience: "Legal, compliance, risk, institutional advisors.",
+        relevance: "High leverage for regulated strategies, custody, and policy-aligned positioning.",
+        notes: "Site indicates June (exact day may vary). Treat dates as tentative unless confirmed."
+      },
+      "BTC Prague": {
+        priority: "Medium",
+        location: "Prague, Czech Republic",
+        url: "https://btcprague.com/",
+        focus: "Bitcoin infrastructure, monetary narrative, and builders.",
+        audience: "Bitcoin companies, devs, investors, infra providers.",
+        relevance: "Great for BTC-aligned market story and infrastructure partnerships.",
+        notes: "Official dates: Jun 12–13, 2026. Your ICS is one day earlier, calendar will show official dates.",
+        dateOverride: { start: "2026-06-12", end: "2026-06-14" }
+      },
+      "European Blockchain Convention – Barcelona": {
+        priority: "High",
+        location: "Barcelona, Spain (Fira Barcelona)",
+        url: "https://eblockchainconvention.com/european-blockchain-convention-12/",
+        focus: "Institutional Europe: banks, funds, policy, tokenization, infrastructure.",
+        audience: "TradFi leaders, crypto execs, policymakers, enterprise builders.",
+        relevance: "One of the strongest EU stages for institutional credibility and BD.",
+        notes: "Official dates: Sep 16–17, 2026. Your ICS shows Sep 17 only, calendar will display official dates.",
+        dateOverride: { start: "2026-09-16", end: "2026-09-18" }
+      },
+      "Crypto Expo Dubai": {
+        priority: "Low",
+        location: "Dubai World Trade Centre, UAE",
+        url: "https://cryptoexpodubai.com/",
+        focus: "Exchanges, wallets, trading infra, and commercial ecosystem.",
+        audience: "Service providers, exchanges, wallets, trading and retail ecosystem.",
+        relevance: "Useful if your go-to-market involves consumer distribution or exchange partnerships.",
+        notes: "Official dates: Sep 9–10, 2026.",
+        dateOverride: { start: "2026-09-09", end: "2026-09-11" }
+      },
+      "Web Summit – Lisboa": {
+        priority: "Medium",
+        location: "Lisbon, Portugal (MEO Arena)",
+        url: "https://websummit.com/web-summit-2026/",
+        focus: "Global tech: fintech, startups, enterprise tech, policy, and emerging trends.",
+        audience: "Founders, VCs, corporates, media, government delegations.",
+        relevance: "Great for broad visibility, enterprise leads, and cross-vertical partnerships.",
+        notes: "Official dates: Nov 9–12, 2026. Your ICS shows only Nov 9, calendar will display official dates.",
+        dateOverride: { start: "2026-11-09", end: "2026-11-13" }
       }
     };
 
     function pad2(n){ return String(n).padStart(2, "0"); }
-    function icalDateToISODate(t){ return `${t.year}-${pad2(t.month)}-${pad2(t.day)}`; }
-
-    function formatDisplayDateFromEvent(event){
-      // Uses Date objects for reliable display in the user’s locale
-      const allDay = event.allDay;
-      const start = event.start;
-      const end = event.end;
-
-      const dateOpts = { year:"numeric", month:"short", day:"2-digit" };
-      const dateTimeOpts = { year:"numeric", month:"short", day:"2-digit", hour:"2-digit", minute:"2-digit" };
-
-      if (!start) return "—";
-
-      if (allDay){
-        const sText = new Intl.DateTimeFormat("en-US", dateOpts).format(start);
-        if (!end) return sText;
-
-        // FullCalendar end is exclusive for all-day events; show inclusive range
-        const eMinusOne = new Date(end.getTime());
-        eMinusOne.setDate(eMinusOne.getDate() - 1);
-
-        const eText = new Intl.DateTimeFormat("en-US", dateOpts).format(eMinusOne);
-        if (sText === eText) return sText;
-        return `${sText} to ${eText}`;
-      } else {
-        const sText = new Intl.DateTimeFormat("en-US", dateTimeOpts).format(start);
-        if (!end) return sText;
-        const eText = new Intl.DateTimeFormat("en-US", dateTimeOpts).format(end);
-        return `${sText} to ${eText}`;
-      }
-    }
 
     function openOverlay(id, focusId){
       const overlay = document.getElementById(id);
@@ -215,7 +432,6 @@
       overlay.setAttribute("aria-hidden", "true");
     }
 
-    // --- Apple Calendar: Create a single-event ICS and open it ---
     function escapeIcsText(s){
       // RFC5545 escaping: backslash, comma, semicolon, newline
       return String(s || "")
@@ -238,63 +454,60 @@
     }
 
     function ymdToCompact(ymd){
-      // "YYYY-MM-DD" -> "YYYYMMDD" without replaceAll
       return String(ymd || "").split("-").join("");
     }
 
-    function buildSingleEventIcs({ title, start, end, allDay, description, location }){
-      const uid = `web3-${Math.random().toString(16).slice(2)}@nicolai-aleman.github.io`;
+    function buildSingleEventIcs({ title, start, end, allDay, description, location, url }){
+      const uid = `web3-${Math.random().toString(16).slice(2)}@web3-events-2026`;
       const now = toIcsUtc(new Date());
 
       let dtStartLine = "";
       let dtEndLine = "";
 
       if (allDay){
-        // start/end are expected as YYYY-MM-DD strings here
         dtStartLine = `DTSTART;VALUE=DATE:${ymdToCompact(start)}`;
-
         if (end){
-          // end for all-day is exclusive (FullCalendar convention)
           dtEndLine = `DTEND;VALUE=DATE:${ymdToCompact(end)}`;
         } else {
-          // If no end, make it a 1-day event by setting DTEND = start + 1 day
           const s = new Date(start + "T00:00:00");
           s.setDate(s.getDate() + 1);
-          const y = s.getFullYear();
-          const m = pad2(s.getMonth()+1);
-          const d = pad2(s.getDate());
-          dtEndLine = `DTEND;VALUE=DATE:${y}${m}${d}`;
+          dtEndLine = `DTEND;VALUE=DATE:${s.getFullYear()}${pad2(s.getMonth()+1)}${pad2(s.getDate())}`;
         }
       } else {
-        // start/end are ISO strings
         const s = new Date(start);
         const e = end ? new Date(end) : new Date(s.getTime() + 60*60*1000);
         dtStartLine = `DTSTART:${toIcsUtc(s)}`;
         dtEndLine = `DTEND:${toIcsUtc(e)}`;
       }
 
-      const locLine = location ? `LOCATION:${escapeIcsText(location)}` : "";
-      const descLine = `DESCRIPTION:${escapeIcsText(description || "")}`;
+      const lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Web3 Events//EN",
+        "CALSCALE:GREGORIAN",
+        "METHOD:PUBLISH",
+        "BEGIN:VEVENT",
+        `UID:${uid}`,
+        `DTSTAMP:${now}`,
+        `SUMMARY:${escapeIcsText(title)}`,
+        dtStartLine,
+        dtEndLine
+      ];
 
-      const ics =
-`BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//Web3 Events//EN
-CALSCALE:GREGORIAN
-METHOD:PUBLISH
-BEGIN:VEVENT
-UID:${uid}
-DTSTAMP:${now}
-SUMMARY:${escapeIcsText(title)}
-${dtStartLine}
-${dtEndLine}
-${locLine}
-${descLine}
-END:VEVENT
-END:VCALENDAR`;
+      if (location) lines.push(`LOCATION:${escapeIcsText(location)}`);
+      if (url) lines.push(`URL:${escapeIcsText(url)}`);
 
-      // Ensure CRLF line endings
-      return ics.replace(/\n/g, "\r\n");
+      const fullDesc = [
+        description || "",
+        location ? `Location: ${location}` : "",
+        url ? `Official page: ${url}` : ""
+      ].filter(Boolean).join("\n");
+
+      lines.push(`DESCRIPTION:${escapeIcsText(fullDesc)}`);
+      lines.push("END:VEVENT");
+      lines.push("END:VCALENDAR");
+
+      return lines.join("\n").replace(/\n/g, "\r\n");
     }
 
     function openAppleCalendarForEvent(icsText, suggestedName){
@@ -302,23 +515,101 @@ END:VCALENDAR`;
       const blob = new Blob([icsText], { type: "text/calendar;charset=utf-8" });
       const url = URL.createObjectURL(blob);
 
-      // Safari/iOS: navigating to the blob URL typically triggers Calendar import
-      // Also create a fallback download link (helps in some desktop edge cases)
       const a = document.createElement("a");
       a.href = url;
       a.download = filename;
       document.body.appendChild(a);
 
-      // Try navigation first (import flow), then fallback click
+      // Navigate for Apple Calendar import, then fallback download click
       window.location.href = url;
-      setTimeout(() => {
-        try { a.click(); } catch(_) {}
-        document.body.removeChild(a);
-      }, 200);
+      setTimeout(() => { try { a.click(); } catch(_) {} document.body.removeChild(a); }, 200);
 
       setTimeout(() => URL.revokeObjectURL(url), 60000);
     }
 
+    function formatDisplayDateFromEvent(event){
+      const allDay = event.allDay;
+      const start = event.start;
+      const end = event.end;
+
+      const dateOpts = { year:"numeric", month:"short", day:"2-digit" };
+      const dateTimeOpts = { year:"numeric", month:"short", day:"2-digit", hour:"2-digit", minute:"2-digit" };
+
+      if (!start) return "—";
+
+      if (allDay){
+        const sText = new Intl.DateTimeFormat("en-US", dateOpts).format(start);
+        if (!end) return sText;
+
+        const eMinusOne = new Date(end.getTime());
+        eMinusOne.setDate(eMinusOne.getDate() - 1);
+        const eText = new Intl.DateTimeFormat("en-US", dateOpts).format(eMinusOne);
+
+        if (sText === eText) return sText;
+        return `${sText} to ${eText}`;
+      } else {
+        const sText = new Intl.DateTimeFormat("en-US", dateTimeOpts).format(start);
+        if (!end) return sText;
+        const eText = new Intl.DateTimeFormat("en-US", dateTimeOpts).format(end);
+        return `${sText} to ${eText}`;
+      }
+    }
+
+    async function loadIcsText(){
+      try {
+        const res = await fetch(ICS_FILENAME, { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.text();
+      } catch (_) {
+        return ICS_FALLBACK_TEXT;
+      }
+    }
+
+    function parseIcsToEvents(icsText){
+      const jcalData = ICAL.parse(icsText);
+      const comp = new ICAL.Component(jcalData);
+      const vevents = comp.getAllSubcomponents("vevent");
+
+      const events = vevents.map(v => {
+        const e = new ICAL.Event(v);
+        const title = e.summary || "Event";
+        const rawDesc = e.description || "";
+
+        const details = EVENT_DETAILS[title] || {};
+        const override = details.dateOverride || null;
+
+        // All events in your ICS are VALUE=DATE (all-day)
+        let startISO = e.startDate ? `${e.startDate.year}-${pad2(e.startDate.month)}-${pad2(e.startDate.day)}` : null;
+        let endISO = e.endDate ? `${e.endDate.year}-${pad2(e.endDate.month)}-${pad2(e.endDate.day)}` : null;
+
+        if (override && override.start) startISO = override.start;
+        if (override && override.end) endISO = override.end;
+
+        const enrichedDescription = details.notes
+          ? details.notes
+          : rawDesc;
+
+        return {
+          title,
+          start: startISO,     // YYYY-MM-DD (all-day)
+          end: endISO,         // YYYY-MM-DD (exclusive)
+          allDay: true,
+          extendedProps: {
+            description: enrichedDescription,
+            location: details.location || "",
+            url: details.url || "",
+            priority: details.priority || "—",
+            focus: details.focus || "",
+            audience: details.audience || "",
+            relevance: details.relevance || ""
+          }
+        };
+      });
+
+      return events;
+    }
+
+    // Current modal payload
     let CURRENT_EVENT_PAYLOAD = null;
 
     document.addEventListener("DOMContentLoaded", async function(){
@@ -331,58 +622,47 @@ END:VCALENDAR`;
         if (e.key === "Escape") closeOverlay("eventModalOverlay");
       });
 
+      const openOfficialBtn = document.getElementById("openOfficialBtn");
+      openOfficialBtn.addEventListener("click", function(){
+        const url = CURRENT_EVENT_PAYLOAD && CURRENT_EVENT_PAYLOAD.url;
+        if (url) window.open(url, "_blank", "noopener,noreferrer");
+      });
+
       document.getElementById("addToAppleBtn").addEventListener("click", function(){
         if (!CURRENT_EVENT_PAYLOAD) return;
         const ics = buildSingleEventIcs(CURRENT_EVENT_PAYLOAD);
         openAppleCalendarForEvent(ics, CURRENT_EVENT_PAYLOAD.title);
       });
 
-      // Load full ICS to render calendar (robust error handling)
       const calendarEl = document.getElementById("calendar");
       let events = [];
 
       try {
-        const response = await fetch(ICS_FILENAME, { cache: "no-store" });
-        if (!response.ok){
-          throw new Error(`Could not load ICS file. HTTP ${response.status}. Check that "${ICS_FILENAME}" is in the same folder as index.html.`);
-        }
-
-        const text = await response.text();
-        const jcalData = ICAL.parse(text);
-        const comp = new ICAL.Component(jcalData);
-        const vevents = comp.getAllSubcomponents("vevent");
-
-        events = vevents.map(v => {
-          const e = new ICAL.Event(v);
-          const isAllDay = e.startDate && e.startDate.isDate === true;
-
-          let startVal, endVal;
-          if (isAllDay){
-            startVal = icalDateToISODate(e.startDate); // YYYY-MM-DD
-            endVal = e.endDate ? icalDateToISODate(e.endDate) : null; // exclusive end
-          } else {
-            startVal = e.startDate ? e.startDate.toJSDate().toISOString() : null;
-            endVal = e.endDate ? e.endDate.toJSDate().toISOString() : null;
-          }
-
-          return {
-            title: e.summary || "Event",
-            start: startVal,
-            end: endVal,
-            allDay: isAllDay,
-            extendedProps: { description: e.description || "" }
-          };
-        });
-
+        const icsText = await loadIcsText();
+        events = parseIcsToEvents(icsText);
       } catch (err){
         calendarEl.innerHTML =
           `<div class="error-box">
              <strong>Calendar could not be loaded</strong>
-             <div style="margin-bottom:8px;">Make sure the ICS file exists and is reachable:</div>
-             <div><code>${ICS_FILENAME}</code></div>
+             <div style="margin-bottom:8px;">Please verify your ICS format.</div>
              <div style="margin-top:10px;color:#6b7280;font-size:12.5px;">Technical detail: ${escapeHtml(String(err && err.message ? err.message : err))}</div>
            </div>`;
         return;
+      }
+
+      let currentSearch = "";
+      let priorityOnly = false;
+
+      function eventMatchesFilters(ev){
+        const t = (ev.title || "").toLowerCase();
+        const loc = (ev.extendedProps && ev.extendedProps.location ? ev.extendedProps.location : "").toLowerCase();
+        const q = currentSearch.trim().toLowerCase();
+
+        const matchesText = !q || t.includes(q) || loc.includes(q);
+        const isPriority = (ev.extendedProps && ev.extendedProps.priority ? ev.extendedProps.priority : "").toLowerCase() === "high";
+        const matchesPriority = !priorityOnly || isPriority;
+
+        return matchesText && matchesPriority;
       }
 
       const calendar = new FullCalendar.Calendar(calendarEl, {
@@ -391,60 +671,82 @@ END:VCALENDAR`;
         locale: "en",
         height: "auto",
         headerToolbar: { left: "prev,next today", center: "title", right: "dayGridMonth,listMonth" },
-        events,
+        events: (info, success) => {
+          const filtered = events.filter(eventMatchesFilters);
+          success(filtered);
+        },
+        eventDidMount: function(info){
+          // Clean tooltip with location
+          const loc = info.event.extendedProps.location || "";
+          if (loc) info.el.title = `${info.event.title} • ${loc}`;
+        },
         eventClick: function(info){
           info.jsEvent.preventDefault();
 
           const title = info.event.title;
-          const details = EVENT_DETAILS[title] || {};
+          const props = info.event.extendedProps || {};
 
-          const displayDate = formatDisplayDateFromEvent(info.event);
-
-          // Fill modal text
           document.getElementById("eventModalTitle").textContent = title;
-          document.getElementById("eventModalDate").textContent = displayDate;
+          document.getElementById("eventModalDate").textContent = formatDisplayDateFromEvent(info.event);
 
           const locEl = document.getElementById("eventModalLocation");
-          const locationText = details.location || "";
-          if (locationText){
+          if (props.location){
             locEl.style.display = "inline-flex";
-            locEl.textContent = locationText;
+            locEl.textContent = props.location;
           } else {
             locEl.style.display = "none";
           }
 
-          document.getElementById("eventModalFocus").textContent = details.focus || "—";
-          document.getElementById("eventModalAudience").textContent = details.audience || "—";
-          document.getElementById("eventModalRelevance").textContent = details.relevance || "—";
-          document.getElementById("eventModalNotes").textContent =
-            details.notes || info.event.extendedProps.description || "—";
-
-          // Prepare payload for single-event ICS
-          if (info.event.allDay){
-            CURRENT_EVENT_PAYLOAD = {
-              title,
-              start: info.event.startStr,                 // YYYY-MM-DD
-              end: info.event.endStr || null,             // YYYY-MM-DD (exclusive) or null
-              allDay: true,
-              description: (details.notes || info.event.extendedProps.description || ""),
-              location: locationText
-            };
+          const prEl = document.getElementById("eventModalPriority");
+          if (props.priority && props.priority !== "—"){
+            prEl.style.display = "inline-flex";
+            prEl.textContent = `Priority: ${props.priority}`;
           } else {
-            CURRENT_EVENT_PAYLOAD = {
-              title,
-              start: info.event.start ? info.event.start.toISOString() : null,
-              end: info.event.end ? info.event.end.toISOString() : null,
-              allDay: false,
-              description: (details.notes || info.event.extendedProps.description || ""),
-              location: locationText
-            };
+            prEl.style.display = "none";
           }
+
+          document.getElementById("eventModalFocus").textContent = props.focus || "—";
+          document.getElementById("eventModalAudience").textContent = props.audience || "—";
+          document.getElementById("eventModalRelevance").textContent = props.relevance || "—";
+          document.getElementById("eventModalNotes").textContent = props.description || "—";
+
+          // Official link button
+          if (props.url){
+            openOfficialBtn.style.display = "block";
+          } else {
+            openOfficialBtn.style.display = "none";
+          }
+
+          // Payload for Apple Calendar (all-day event)
+          CURRENT_EVENT_PAYLOAD = {
+            title,
+            start: info.event.startStr,                // YYYY-MM-DD
+            end: info.event.endStr || null,            // YYYY-MM-DD exclusive
+            allDay: true,
+            description: props.description || "",
+            location: props.location || "",
+            url: props.url || ""
+          };
 
           openOverlay("eventModalOverlay", "addToAppleBtn");
         }
       });
 
       calendar.render();
+
+      // Filters
+      const searchInput = document.getElementById("eventSearch");
+      const priorityInput = document.getElementById("priorityOnly");
+
+      searchInput.addEventListener("input", () => {
+        currentSearch = searchInput.value || "";
+        calendar.refetchEvents();
+      });
+
+      priorityInput.addEventListener("change", () => {
+        priorityOnly = !!priorityInput.checked;
+        calendar.refetchEvents();
+      });
     });
 
     function escapeHtml(str){
