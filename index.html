@@ -13,7 +13,7 @@
     :root{
       --bg:#f4f6f9; --card:#fff; --text:#111827; --muted:#6b7280; --border:#e5e7eb;
       --shadow:0 14px 30px rgba(17,24,39,.08); --shadow2:0 12px 24px rgba(17,24,39,.18);
-      --radius:12px; --btn:#111827; --btnText:#fff; --btnSoft:#fff; --btnSoftText:#111827;
+      --radius:12px; --btn:#111827; --btnText:#fff;
     }
 
     body{font-family:Arial,Helvetica,sans-serif;background:var(--bg);margin:0;padding:28px 16px;color:var(--text)}
@@ -24,6 +24,9 @@
     .subtitle{color:var(--muted);font-size:14px;margin:0;line-height:1.4}
 
     #calendar{background:var(--card);padding:18px;border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--border)}
+    .error-box{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px;color:#111827}
+    .error-box strong{display:block;margin-bottom:6px}
+    .error-box code{background:#f3f4f6;padding:2px 6px;border-radius:8px}
 
     /* Modal */
     .modal-overlay{
@@ -137,46 +140,64 @@
   </div>
 
   <script>
-    // Keep your full ICS in the same folder as this index.html (for calendar rendering)
     const ICS_FILENAME = "Calendario_Eventos_Web3_2026.ics";
 
-    // Optional enriched details per event title (must match SUMMARY in the ICS exactly).
+    // Enriched details per event title (must match SUMMARY in the ICS exactly).
     const EVENT_DETAILS = {
       "CfC St. Moritz": {
-        location: "St. Moritz, Switzerland",
-        focus: "Institutional, high-level digital finance discussions.",
-        audience: "Funds, private banks, family offices, and regulators.",
-        relevance: "Selective setting for strategic conversations and executive positioning.",
-        notes: "Best suited for CEO-level networking and confidential discussions."
+        location: "St. Moritz, Switzerland (Villa Beaulieu)",
+        focus: "Curated, investor-grade digital assets and market-structure conversations.",
+        audience: "Institutional investors, private banks, family offices, regulators, top-tier founders.",
+        relevance: "High signal environment for discreet partnerships, positioning, and strategic alignment.",
+        notes: "Industry Days 2026: Jan 13–17, 2026. Venue: Villa Beaulieu, St. Moritz. Use for CEO-level networking and confidential dealflow."
       },
       "Consensus Hong Kong": {
-        location: "Hong Kong",
-        focus: "Institutional capital and Asia-focused Web3 market structure.",
-        audience: "Builders, investors, institutions, and policymakers.",
-        relevance: "High signal for Asia expansion, partnerships, and regulatory alignment.",
-        notes: "Use for capital conversations and cross-border distribution opportunities."
+        location: "Hong Kong (Hong Kong Convention & Exhibition Centre)",
+        focus: "Institutional scale digital assets, market infrastructure, regulation, and global capital.",
+        audience: "Builders, VCs, institutions, exchanges, policymakers, compliance and market-structure teams.",
+        relevance: "Strong for Asia expansion, distribution partnerships, and regulatory narratives.",
+        notes: "Dates: Feb 10–12, 2026. Venue: Hong Kong Convention & Exhibition Centre (HKCEC). Prioritize meetings around capital, custody, and cross-border rails."
       },
       "ETHDenver": {
-        location: "Denver, United States",
-        focus: "Technical Web3 development and builder ecosystem.",
-        audience: "Developers, protocol teams, product engineers.",
-        relevance: "Best for product, engineering, and ecosystem integrations.",
-        notes: "Ideal if you have a technical roadmap (wallets, rails, smart contracts, infrastructure)."
+        location: "Denver, Colorado, USA",
+        focus: "Builder ecosystem, engineering, protocols, dev tooling, and hands-on experimentation.",
+        audience: "Developers, protocol teams, product engineers, infra builders, community operators.",
+        relevance: "Best for product traction, integrations, recruiting technical talent, and ecosystem presence.",
+        notes: "Dates: Feb 17–21, 2026. Go with a concrete roadmap: wallets, rails, smart contracts, infra, SDKs. Plan side-events for partner demos."
       }
-      // Add more as needed...
     };
 
     function pad2(n){ return String(n).padStart(2, "0"); }
     function icalDateToISODate(t){ return `${t.year}-${pad2(t.month)}-${pad2(t.day)}`; }
 
-    function formatDisplayDate(start, end, allDay){
-      const opts = { year:"numeric", month:"short", day:"2-digit" };
-      const s = allDay ? new Date(start + "T00:00:00") : new Date(start);
-      let e = end ? (allDay ? new Date(end + "T00:00:00") : new Date(end)) : null;
-      if (!e) return s.toLocaleDateString("en-US", opts);
-      if (allDay) e.setDate(e.getDate() - 1);
-      if (s.toDateString() === e.toDateString()) return s.toLocaleDateString("en-US", opts);
-      return `${s.toLocaleDateString("en-US", opts)} to ${e.toLocaleDateString("en-US", opts)}`;
+    function formatDisplayDateFromEvent(event){
+      // Uses Date objects for reliable display in the user’s locale
+      const allDay = event.allDay;
+      const start = event.start;
+      const end = event.end;
+
+      const dateOpts = { year:"numeric", month:"short", day:"2-digit" };
+      const dateTimeOpts = { year:"numeric", month:"short", day:"2-digit", hour:"2-digit", minute:"2-digit" };
+
+      if (!start) return "—";
+
+      if (allDay){
+        const sText = new Intl.DateTimeFormat("en-US", dateOpts).format(start);
+        if (!end) return sText;
+
+        // FullCalendar end is exclusive for all-day events; show inclusive range
+        const eMinusOne = new Date(end.getTime());
+        eMinusOne.setDate(eMinusOne.getDate() - 1);
+
+        const eText = new Intl.DateTimeFormat("en-US", dateOpts).format(eMinusOne);
+        if (sText === eText) return sText;
+        return `${sText} to ${eText}`;
+      } else {
+        const sText = new Intl.DateTimeFormat("en-US", dateTimeOpts).format(start);
+        if (!end) return sText;
+        const eText = new Intl.DateTimeFormat("en-US", dateTimeOpts).format(end);
+        return `${sText} to ${eText}`;
+      }
     }
 
     function openOverlay(id, focusId){
@@ -196,16 +217,17 @@
 
     // --- Apple Calendar: Create a single-event ICS and open it ---
     function escapeIcsText(s){
+      // RFC5545 escaping: backslash, comma, semicolon, newline
       return String(s || "")
-        .replace(/\\\\/g, "\\\\\\\\")
-        .replace(/\\n/g, "\\\\n")
-        .replace(/\\r/g, "")
-        .replace(/,/g, "\\\\,")
-        .replace(/;/g, "\\\\;");
+        .replace(/\\/g, "\\\\")
+        .replace(/\r\n/g, "\n")
+        .replace(/\r/g, "")
+        .replace(/\n/g, "\\n")
+        .replace(/,/g, "\\,")
+        .replace(/;/g, "\\;");
     }
 
     function toIcsUtc(dt){
-      // dt is JS Date
       const y = dt.getUTCFullYear();
       const m = pad2(dt.getUTCMonth()+1);
       const d = pad2(dt.getUTCDate());
@@ -213,6 +235,11 @@
       const mm = pad2(dt.getUTCMinutes());
       const ss = pad2(dt.getUTCSeconds());
       return `${y}${m}${d}T${hh}${mm}${ss}Z`;
+    }
+
+    function ymdToCompact(ymd){
+      // "YYYY-MM-DD" -> "YYYYMMDD" without replaceAll
+      return String(ymd || "").split("-").join("");
     }
 
     function buildSingleEventIcs({ title, start, end, allDay, description, location }){
@@ -223,12 +250,12 @@
       let dtEndLine = "";
 
       if (allDay){
-        // FullCalendar all-day dates are YYYY-MM-DD
-        // iCalendar for all-day uses VALUE=DATE and DTEND is exclusive
-        dtStartLine = `DTSTART;VALUE=DATE:${start.replaceAll("-","")}`;
+        // start/end are expected as YYYY-MM-DD strings here
+        dtStartLine = `DTSTART;VALUE=DATE:${ymdToCompact(start)}`;
 
         if (end){
-          dtEndLine = `DTEND;VALUE=DATE:${end.replaceAll("-","")}`;
+          // end for all-day is exclusive (FullCalendar convention)
+          dtEndLine = `DTEND;VALUE=DATE:${ymdToCompact(end)}`;
         } else {
           // If no end, make it a 1-day event by setting DTEND = start + 1 day
           const s = new Date(start + "T00:00:00");
@@ -239,11 +266,15 @@
           dtEndLine = `DTEND;VALUE=DATE:${y}${m}${d}`;
         }
       } else {
+        // start/end are ISO strings
         const s = new Date(start);
         const e = end ? new Date(end) : new Date(s.getTime() + 60*60*1000);
         dtStartLine = `DTSTART:${toIcsUtc(s)}`;
         dtEndLine = `DTEND:${toIcsUtc(e)}`;
       }
+
+      const locLine = location ? `LOCATION:${escapeIcsText(location)}` : "";
+      const descLine = `DESCRIPTION:${escapeIcsText(description || "")}`;
 
       const ics =
 `BEGIN:VCALENDAR
@@ -257,27 +288,37 @@ DTSTAMP:${now}
 SUMMARY:${escapeIcsText(title)}
 ${dtStartLine}
 ${dtEndLine}
-${location ? "LOCATION:" + escapeIcsText(location) : ""}
-DESCRIPTION:${escapeIcsText(description || "")}
+${locLine}
+${descLine}
 END:VEVENT
 END:VCALENDAR`;
 
-      return ics.replace(/\\n/g, "\\r\\n");
+      // Ensure CRLF line endings
+      return ics.replace(/\n/g, "\r\n");
     }
 
-    function openAppleCalendarForEvent(icsText){
-      // data URL approach: triggers Apple Calendar import on Safari/iOS/macOS
+    function openAppleCalendarForEvent(icsText, suggestedName){
+      const filename = (suggestedName || "event").replace(/[^\w\-]+/g, "_") + ".ics";
       const blob = new Blob([icsText], { type: "text/calendar;charset=utf-8" });
       const url = URL.createObjectURL(blob);
 
-      // Opening the blob URL in same tab is more reliable for Safari import flows
-      window.location.href = url;
+      // Safari/iOS: navigating to the blob URL typically triggers Calendar import
+      // Also create a fallback download link (helps in some desktop edge cases)
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
 
-      // Cleanup after a while
+      // Try navigation first (import flow), then fallback click
+      window.location.href = url;
+      setTimeout(() => {
+        try { a.click(); } catch(_) {}
+        document.body.removeChild(a);
+      }, 200);
+
       setTimeout(() => URL.revokeObjectURL(url), 60000);
     }
 
-    // Store the currently selected event data for the "Add to Apple Calendar" button
     let CURRENT_EVENT_PAYLOAD = null;
 
     document.addEventListener("DOMContentLoaded", async function(){
@@ -292,42 +333,59 @@ END:VCALENDAR`;
 
       document.getElementById("addToAppleBtn").addEventListener("click", function(){
         if (!CURRENT_EVENT_PAYLOAD) return;
-
         const ics = buildSingleEventIcs(CURRENT_EVENT_PAYLOAD);
-        openAppleCalendarForEvent(ics);
+        openAppleCalendarForEvent(ics, CURRENT_EVENT_PAYLOAD.title);
       });
 
-      // Load full ICS to render calendar
-      const response = await fetch(ICS_FILENAME);
-      const text = await response.text();
+      // Load full ICS to render calendar (robust error handling)
+      const calendarEl = document.getElementById("calendar");
+      let events = [];
 
-      const jcalData = ICAL.parse(text);
-      const comp = new ICAL.Component(jcalData);
-      const vevents = comp.getAllSubcomponents("vevent");
-
-      const events = vevents.map(event => {
-        const e = new ICAL.Event(event);
-        const isAllDay = e.startDate && e.startDate.isDate === true;
-
-        let startVal, endVal;
-        if (isAllDay){
-          startVal = icalDateToISODate(e.startDate); // YYYY-MM-DD
-          endVal = e.endDate ? icalDateToISODate(e.endDate) : null; // exclusive end
-        } else {
-          startVal = e.startDate ? e.startDate.toJSDate().toISOString() : null;
-          endVal = e.endDate ? e.endDate.toJSDate().toISOString() : null;
+      try {
+        const response = await fetch(ICS_FILENAME, { cache: "no-store" });
+        if (!response.ok){
+          throw new Error(`Could not load ICS file. HTTP ${response.status}. Check that "${ICS_FILENAME}" is in the same folder as index.html.`);
         }
 
-        return {
-          title: e.summary || "Event",
-          start: startVal,
-          end: endVal,
-          allDay: isAllDay,
-          extendedProps: { description: e.description || "" }
-        };
-      });
+        const text = await response.text();
+        const jcalData = ICAL.parse(text);
+        const comp = new ICAL.Component(jcalData);
+        const vevents = comp.getAllSubcomponents("vevent");
 
-      const calendar = new FullCalendar.Calendar(document.getElementById("calendar"), {
+        events = vevents.map(v => {
+          const e = new ICAL.Event(v);
+          const isAllDay = e.startDate && e.startDate.isDate === true;
+
+          let startVal, endVal;
+          if (isAllDay){
+            startVal = icalDateToISODate(e.startDate); // YYYY-MM-DD
+            endVal = e.endDate ? icalDateToISODate(e.endDate) : null; // exclusive end
+          } else {
+            startVal = e.startDate ? e.startDate.toJSDate().toISOString() : null;
+            endVal = e.endDate ? e.endDate.toJSDate().toISOString() : null;
+          }
+
+          return {
+            title: e.summary || "Event",
+            start: startVal,
+            end: endVal,
+            allDay: isAllDay,
+            extendedProps: { description: e.description || "" }
+          };
+        });
+
+      } catch (err){
+        calendarEl.innerHTML =
+          `<div class="error-box">
+             <strong>Calendar could not be loaded</strong>
+             <div style="margin-bottom:8px;">Make sure the ICS file exists and is reachable:</div>
+             <div><code>${ICS_FILENAME}</code></div>
+             <div style="margin-top:10px;color:#6b7280;font-size:12.5px;">Technical detail: ${escapeHtml(String(err && err.message ? err.message : err))}</div>
+           </div>`;
+        return;
+      }
+
+      const calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: "dayGridMonth",
         initialDate: "2026-01-01",
         locale: "en",
@@ -340,18 +398,17 @@ END:VCALENDAR`;
           const title = info.event.title;
           const details = EVENT_DETAILS[title] || {};
 
-          const start = info.event.allDay ? info.event.startStr : (info.event.start ? info.event.start.toISOString() : null);
-          const end = info.event.allDay ? (info.event.endStr || null) : (info.event.end ? info.event.end.toISOString() : null);
-          const displayDate = formatDisplayDate(start, end, info.event.allDay);
+          const displayDate = formatDisplayDateFromEvent(info.event);
 
           // Fill modal text
           document.getElementById("eventModalTitle").textContent = title;
           document.getElementById("eventModalDate").textContent = displayDate;
 
           const locEl = document.getElementById("eventModalLocation");
-          if (details.location){
+          const locationText = details.location || "";
+          if (locationText){
             locEl.style.display = "inline-flex";
-            locEl.textContent = details.location;
+            locEl.textContent = locationText;
           } else {
             locEl.style.display = "none";
           }
@@ -363,14 +420,25 @@ END:VCALENDAR`;
             details.notes || info.event.extendedProps.description || "—";
 
           // Prepare payload for single-event ICS
-          CURRENT_EVENT_PAYLOAD = {
-            title,
-            start: info.event.allDay ? info.event.startStr : info.event.start.toISOString(),
-            end: info.event.allDay ? (info.event.endStr || null) : (info.event.end ? info.event.end.toISOString() : null),
-            allDay: info.event.allDay,
-            description: details.notes || info.event.extendedProps.description || "",
-            location: details.location || ""
-          };
+          if (info.event.allDay){
+            CURRENT_EVENT_PAYLOAD = {
+              title,
+              start: info.event.startStr,                 // YYYY-MM-DD
+              end: info.event.endStr || null,             // YYYY-MM-DD (exclusive) or null
+              allDay: true,
+              description: (details.notes || info.event.extendedProps.description || ""),
+              location: locationText
+            };
+          } else {
+            CURRENT_EVENT_PAYLOAD = {
+              title,
+              start: info.event.start ? info.event.start.toISOString() : null,
+              end: info.event.end ? info.event.end.toISOString() : null,
+              allDay: false,
+              description: (details.notes || info.event.extendedProps.description || ""),
+              location: locationText
+            };
+          }
 
           openOverlay("eventModalOverlay", "addToAppleBtn");
         }
@@ -378,6 +446,15 @@ END:VCALENDAR`;
 
       calendar.render();
     });
+
+    function escapeHtml(str){
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
   </script>
 </body>
 </html>
