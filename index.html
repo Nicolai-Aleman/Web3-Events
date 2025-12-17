@@ -15,6 +15,7 @@
       --shadow:0 14px 30px rgba(17,24,39,.08); --shadow2:0 12px 24px rgba(17,24,39,.18);
       --radius:12px; --btn:#111827; --btnText:#fff; --btnSoft:#fff; --btnSoftText:#111827;
       --chip:#f9fafb;
+      --link:#2563eb;
     }
 
     body{font-family:Arial,Helvetica,sans-serif;background:var(--bg);margin:0;padding:28px 16px;color:var(--text)}
@@ -29,9 +30,7 @@
       background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
       padding:12px;box-shadow:var(--shadow);margin-bottom:12px
     }
-    .search{
-      display:flex;gap:10px;align-items:center;flex:1;min-width:240px
-    }
+    .search{display:flex;gap:10px;align-items:center;flex:1;min-width:240px}
     .search input{
       width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;
       font-size:13px;outline:none;background:#fff
@@ -93,6 +92,32 @@
     }
     .hint{color:var(--muted);font-size:12.5px;line-height:1.35;margin:0}
 
+    a.official-link{
+      color:var(--link);
+      text-decoration:none;
+      font-weight:800;
+    }
+    a.official-link:hover{ text-decoration:underline; }
+
+    /* Inline link on each event */
+    .event-inline-link{
+      display:inline-flex;
+      margin-left:8px;
+      padding:2px 6px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.65);
+      background:rgba(17,24,39,.15);
+      color:#fff;
+      text-decoration:none;
+      font-size:12px;
+      line-height:1;
+      vertical-align:middle;
+    }
+    .event-inline-link:hover{
+      background:rgba(17,24,39,.25);
+      text-decoration:none;
+    }
+
     @media (max-width:760px){
       .two-col{grid-template-columns:1fr}
       body{padding:20px 12px}
@@ -148,7 +173,13 @@
             <button id="addToAppleBtn" class="btn" type="button">Add to Apple Calendar</button>
             <button id="openOfficialBtn" class="btn-soft" type="button" style="display:none;">Open official page</button>
           </div>
+
+          <!-- NEW: hyperlink text -->
           <p class="hint" style="margin-top:10px;">
+            <span id="officialLinkWrap" style="display:none;">
+              Official registration: <a id="eventModalLink" class="official-link" href="#" target="_blank" rel="noopener noreferrer">Open event website ↗</a>
+              <br />
+            </span>
             Best experience on Safari (iPhone/Mac). This adds only this event, not the entire calendar.
           </p>
         </div>
@@ -180,7 +211,6 @@
   <script>
     const ICS_FILENAME = "Calendario_Eventos_Web3_2026.ics";
 
-    // Fallback ICS (so this works 100% even if fetch fails or the file is missing)
     const ICS_FALLBACK_TEXT =
 `BEGIN:VCALENDAR
 VERSION:2.0
@@ -271,8 +301,6 @@ DESCRIPTION:Tecnología global, fintech y Web3.
 END:VEVENT
 END:VCALENDAR`;
 
-    // Premium enrichment and date overrides (for correct multi-day durations + better UX)
-    // For all-day overrides: end should be exclusive YYYY-MM-DD.
     const EVENT_DETAILS = {
       "CfC St. Moritz": {
         priority: "High",
@@ -433,7 +461,6 @@ END:VCALENDAR`;
     }
 
     function escapeIcsText(s){
-      // RFC5545 escaping: backslash, comma, semicolon, newline
       return String(s || "")
         .replace(/\\/g, "\\\\")
         .replace(/\r\n/g, "\n")
@@ -520,10 +547,8 @@ END:VCALENDAR`;
       a.download = filename;
       document.body.appendChild(a);
 
-      // Navigate for Apple Calendar import, then fallback download click
       window.location.href = url;
       setTimeout(() => { try { a.click(); } catch(_) {} document.body.removeChild(a); }, 200);
-
       setTimeout(() => URL.revokeObjectURL(url), 60000);
     }
 
@@ -578,22 +603,20 @@ END:VCALENDAR`;
         const details = EVENT_DETAILS[title] || {};
         const override = details.dateOverride || null;
 
-        // All events in your ICS are VALUE=DATE (all-day)
         let startISO = e.startDate ? `${e.startDate.year}-${pad2(e.startDate.month)}-${pad2(e.startDate.day)}` : null;
         let endISO = e.endDate ? `${e.endDate.year}-${pad2(e.endDate.month)}-${pad2(e.endDate.day)}` : null;
 
         if (override && override.start) startISO = override.start;
         if (override && override.end) endISO = override.end;
 
-        const enrichedDescription = details.notes
-          ? details.notes
-          : rawDesc;
+        const enrichedDescription = details.notes ? details.notes : rawDesc;
 
         return {
           title,
-          start: startISO,     // YYYY-MM-DD (all-day)
-          end: endISO,         // YYYY-MM-DD (exclusive)
+          start: startISO,
+          end: endISO,
           allDay: true,
+          // IMPORTANT: do NOT set event.url here, because we use our own icon link
           extendedProps: {
             description: enrichedDescription,
             location: details.location || "",
@@ -609,7 +632,6 @@ END:VCALENDAR`;
       return events;
     }
 
-    // Current modal payload
     let CURRENT_EVENT_PAYLOAD = null;
 
     document.addEventListener("DOMContentLoaded", async function(){
@@ -675,12 +697,43 @@ END:VCALENDAR`;
           const filtered = events.filter(eventMatchesFilters);
           success(filtered);
         },
+
         eventDidMount: function(info){
-          // Clean tooltip with location
+          // Tooltip with location
           const loc = info.event.extendedProps.location || "";
           if (loc) info.el.title = `${info.event.title} • ${loc}`;
+
+          // NEW: add inline hyperlink icon per event (↗)
+          const url = info.event.extendedProps.url || "";
+          if (url){
+            const titleEl = info.el.querySelector(".fc-event-title");
+            // In list view it can be ".fc-list-event-title"
+            const listTitleEl = info.el.querySelector(".fc-list-event-title");
+
+            const targetEl = titleEl || listTitleEl;
+            if (targetEl && !targetEl.querySelector(".event-inline-link")){
+              const a = document.createElement("a");
+              a.className = "event-inline-link";
+              a.href = url;
+              a.target = "_blank";
+              a.rel = "noopener noreferrer";
+              a.title = "Open official event page";
+              a.textContent = "↗";
+
+              // Prevent this link click from opening the modal
+              a.addEventListener("click", (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                window.open(url, "_blank", "noopener,noreferrer");
+              });
+
+              targetEl.appendChild(a);
+            }
+          }
         },
+
         eventClick: function(info){
+          // Click anywhere on the event opens the modal (except the ↗ link)
           info.jsEvent.preventDefault();
 
           const title = info.event.title;
@@ -710,18 +763,23 @@ END:VCALENDAR`;
           document.getElementById("eventModalRelevance").textContent = props.relevance || "—";
           document.getElementById("eventModalNotes").textContent = props.description || "—";
 
-          // Official link button
+          // Official link: button + hyperlink
+          const linkWrap = document.getElementById("officialLinkWrap");
+          const linkEl = document.getElementById("eventModalLink");
           if (props.url){
             openOfficialBtn.style.display = "block";
+            linkWrap.style.display = "inline";
+            linkEl.href = props.url;
           } else {
             openOfficialBtn.style.display = "none";
+            linkWrap.style.display = "none";
+            linkEl.href = "#";
           }
 
-          // Payload for Apple Calendar (all-day event)
           CURRENT_EVENT_PAYLOAD = {
             title,
-            start: info.event.startStr,                // YYYY-MM-DD
-            end: info.event.endStr || null,            // YYYY-MM-DD exclusive
+            start: info.event.startStr,
+            end: info.event.endStr || null,
             allDay: true,
             description: props.description || "",
             location: props.location || "",
